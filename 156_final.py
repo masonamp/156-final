@@ -11,7 +11,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from tensorflow import data as tfd
 
 EPOCHS = 25
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 N = 1000
 
 
@@ -138,7 +138,7 @@ test_ds = tfd.Dataset.from_tensor_slices((X_test, y_test)).batch(BATCH_SIZE)
 callbacks = [keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras")]
 
 model1.compile(
-    optimizer=keras.optimizers.Adam(3e-4),
+    optimizer=keras.optimizers.Adam(1e-4),  # reduced for inbalance
     loss=keras.losses.BinaryCrossentropy(),
     # Log metrics (accuracy, precision, recall, f1)
     metrics=[
@@ -150,8 +150,10 @@ model1.compile(
 )
 
 # Include label weights to prevent bias toward "No Finding"
-label_rates = np.sum(labels, axis=0) / labels.shape[0]
-weights = {i: (0.1 / label_rate) for i, label_rate in enumerate(label_rates)}
+label_counts = np.sum(labels, axis=0)
+weights = {
+    i: (labels.shape[0] / label_count) for i, label_count in enumerate(label_counts)
+}
 
 
 model1.fit(
@@ -159,7 +161,7 @@ model1.fit(
     epochs=EPOCHS,
     callbacks=callbacks,
     validation_data=val_ds,
-    class_weight=weights,
+    # class_weight=weights,
 )
 
 # Evaluate trained model on test set
