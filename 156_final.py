@@ -83,16 +83,16 @@ with sqlite3.connect("data/xrays.db") as conn:
     cursor = conn.cursor()
     cursor.execute("DROP TABLE IF EXISTS data")
     cursor.execute(
-        f"CREATE TABLE IF NOT EXISTS data (filename, {', '.join([f'\"{name}\"' for name in labelnames])})"
+        f"CREATE TABLE IF NOT EXISTS data (filename, {', '.join([f'[{name}]' for name in labelnames])})"
     )
 
     cursor.executemany(
-        f"INSERT INTO data (filename, {', '.join([f'\"{name}\"' for name in labelnames])}) VALUES ({', '.join(16*['?'])})",
+        f"INSERT INTO data (filename, {', '.join([f'[{name}]' for name in labelnames])}) VALUES ({', '.join(16*['?'])})",
         to_db,
     )
 
     cursor.execute(
-        f"SELECT {', '.join([f'\"{name}\"' for name in labelnames])} FROM data WHERE filename IN ({', '.join(['?']*len(filename_list))}) ORDER BY filename",
+        f"SELECT {', '.join([f'[{name}]' for name in labelnames])} FROM data WHERE filename IN ({', '.join(['?']*len(filename_list))}) ORDER BY filename",
         filename_list,
     )
     labels = np.array(cursor.fetchall(), dtype=np.float32)
