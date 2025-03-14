@@ -139,13 +139,15 @@ callbacks = [keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras")]
 
 model1.compile(
     optimizer=keras.optimizers.Adam(1e-4),  # reduced for inbalance
-    loss=keras.losses.BinaryCrossentropy(),
+    loss=keras.losses.BinaryFocalCrossentropy(
+        alpha=0.5, gamma=2.0
+    ),  # may help with label imbalance
     # Log metrics (accuracy, precision, recall, f1)
     metrics=[
         keras.metrics.BinaryAccuracy(name="acc"),
         keras.metrics.Precision(name="precision"),
         keras.metrics.Recall(name="recall"),
-        keras.metrics.F1Score(name="f1"),
+        keras.metrics.AUC(name="auc"),
     ],
 )
 
