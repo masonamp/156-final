@@ -17,13 +17,13 @@ label_path = "/Users/SavitaSahay/Downloads/Data_Entry_2017_v2020.csv" # path of 
 image_path = "/Users/SavitaSahay/Downloads/chest-xrays" # path of folder comtaining images
 
 
-EPOCHS = 25
-BATCH_SIZE = 100
-N_files = 5000
+EPOCHS = 10
+BATCH_SIZE = 32
+N_files = 10000
 # N_files = len(dirlist)
 IMAGE_SIZE = 256  #resize images
 k = 100  
-sample_size = 500
+sample_size = 2000
 sample_matrix = np.zeros((sample_size, IMAGE_SIZE**2))
 df = pd.read_csv(label_path)  #path of data
 image_files = df["Image Index"].tolist()
@@ -97,16 +97,18 @@ model1 = Sequential(
         layers.Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 1)),
         layers.Conv2D(32, (3, 3), activation="relu", padding="valid"),
         layers.MaxPooling2D((2, 2), padding="valid"),
-        layers.Dropout(0.3),  # dropout to reduce overfitting
+        layers.Dropout(0.4),  # dropout to reduce overfitting
         layers.Conv2D(32, (3, 3), activation="relu", padding="valid"),
         layers.MaxPooling2D((2, 2), padding="valid"),
-        layers.Dropout(0.3),
+        layers.Dropout(0.4),
         layers.Conv2D(32, (3, 3), activation="relu", padding="valid"),
         layers.MaxPooling2D((2, 2), padding="valid"),
-        layers.Dropout(0.3),
+        layers.Dropout(0.4),
         layers.Flatten(),
         layers.Dense(128, activation="relu"),
-        layers.Dropout(0.3),
+        layers.Dropout(0.4),
+        layers.Dense(128, activation="relu"),
+        layers.Dropout(0.4),
         layers.Dense(n_labels, activation="sigmoid"),
     ]
 )
@@ -215,65 +217,94 @@ history = model1.fit(
 print(y_test)
 model1.evaluate(test_ds)
 
-# Plot Loss
-plt.figure(figsize=(10, 5))
-plt.plot(history.history['loss'], label='Training Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Training vs Validation Loss')
-plt.legend()
-plt.show()
+def plot_history(history):
+    # Plot loss
+    plt.figure(figsize=(8, 6))
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Val Loss')
+    plt.title("Training and Validation Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.show()
 
-# Plot Accuracy 
-plt.figure(figsize=(10, 5))
-plt.plot(history.history['acc'], label='Training Accuracy')
-plt.plot(history.history['val_acc'], label='Validation Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.title('Training vs Validation Accuracy')
-plt.legend()
-plt.show()
+    # Plot Accuracy
+    plt.figure(figsize=(8, 6))
+    plt.plot(history.history['acc'], label='Train Accuracy')
+    plt.plot(history.history['val_acc'], label='Val Accuracy')
+    plt.title("Training and Validation Accuracy")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.show()
 
-# Get predictions on test set
-y_pred = model1.predict(test_ds)
-y_pred_binary = (y_pred > 0.5).astype(int)  # thresholding predictions
+    # Plot Precision
+    plt.figure(figsize=(8, 6))
+    plt.plot(history.history['precision'], label='Train Precision')
+    plt.plot(history.history['val_precision'], label='Val Precision')
+    plt.title("Training and Validation Precision")
+    plt.xlabel("Epoch")
+    plt.ylabel("Precision")
+    plt.legend()
+    plt.show()
 
-# Flatten test labels and predictions
+    # Plot Recall
+    plt.figure(figsize=(8, 6))
+    plt.plot(history.history['recall'], label='Train Recall')
+    plt.plot(history.history['val_recall'], label='Val Recall')
+    plt.title("Training and Validation Recall")
+    plt.xlabel("Epoch")
+    plt.ylabel("Recall")
+    plt.legend()
+    plt.show()
+
+
+plot_history(history)
+
+#-----------------------------------------------------------------------
+from sklearn.metrics import confusion_matrix
+
+# Get predictions on the test set
+y_pred_prob = model1.predict(X_test)
+y_pred = (y_pred_prob > 0.5).astype(int)  # thresholding at 0.5
 y_true = y_test
 
-
-cm = confusion_matrix(y_true.argmax(axis=1), y_pred_binary.argmax(axis=1), labels = [0, 1])
-disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-disp.plot(cmap=plt.cm.Blues)
-plt.title('Confusion Matrix')
+cm = confusion_matrix(y_true, y_pred)
+plt.figure(figsize=(6, 5))
+plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+plt.title("Confusion Matrix")
+plt.colorbar()
+tick_marks = np.arange(2)
+plt.xticks(tick_marks, ["No Finding", "Condition"], rotation=45)
+plt.yticks(tick_marks, ["No Finding", "Condition"])
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
 plt.show()
 
+#----------------------------------------------------------------------
+import random
+num_samples = 6  # number of images to display
+indices = random.sample(range(X_test.shape[0]), num_samples)
+sample_images = X_test[indices]
+sample_true = y_test[indices]
+sample_pred_prob = model1.predict(sample_images)
+sample_pred = (sample_pred_prob > 0.5).astype(int)
 
-# 1. Get predictions for the validation data
-y_pred_probs = model1.predict(val_ds)
-y_pred = (y_pred_probs > 0.5).astype(int)  # Convert probabilities to binary predictions
-
-# 2. Convert true labels from the validation dataset into an array
-y_true = np.concatenate([y for x, y in val_ds], axis=0)
-
-# 3. Count the number of true and predicted samples for each class
-true_counts = np.sum(y_true, axis=0)
-pred_counts = np.sum(y_pred, axis=0)
-
-# 4. Plot the distributions side by side
-x = np.arange(len(labelnames))  # Label locations
-width = 0.35  # Width of the bars
-
-plt.figure(figsize=(12, 6))
-plt.bar(x - width/2, true_counts, width, label='True Count')
-plt.bar(x + width/2, pred_counts, width, label='Predicted Count')
-
-plt.xlabel('Classes')
-plt.ylabel('Count')
-plt.title('True vs Predicted Label Distribution (Validation Set)')
-plt.xticks(ticks=x, labels=labelnames, rotation=45)
-plt.legend()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.figure(figsize=(15, 8))
+for i in range(num_samples):
+    plt.subplot(2, 3, i+1)
+    plt.imshow(sample_images[i].reshape(IMAGE_SIZE, IMAGE_SIZE), cmap='gray')
+    plt.title(f"True: {sample_true[i][0]}, Pred: {sample_pred[i][0]}")
+    plt.axis('off')
 plt.tight_layout()
+plt.show()
+
+#-------------------------------------------------------------------------
+# Count samples per label
+label_counts = np.sum(labels, axis=0)
+plt.figure(figsize=(6, 4))
+plt.bar(labelnames, label_counts)
+plt.title("Label Distribution")
+plt.xlabel("Labels")
+plt.ylabel("Count")
 plt.show()
